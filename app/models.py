@@ -6,8 +6,8 @@ from datetime import datetime
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(30), unique=True, nullable=False)
-    password = db.Column(db.String(60), nullable=False)
+    username = db.Column(db.String(60), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(60), unique=True, nullable=False)
     activities = db.relationship('Activity', backref='author', lazy=True)
 
@@ -24,9 +24,6 @@ class User(db.Model):
 class UserSchema(ma.Schema):
     class Meta:
         fields = ('id', 'username', 'password', 'email', 'activities')
-
-user_schema = UserSchema()
-users_schema = UserSchema(many=True)
 
 # Populate with new_activity.activity_type = ActivityTypeEnum.movie
 class ActivityTypeEnum(enum.Enum):
