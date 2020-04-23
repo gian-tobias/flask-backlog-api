@@ -81,7 +81,7 @@ def get_users():
     return jsonify(result)
 
 # Update a user
-@app.route('/user/<id>', methods=['PUT'])
+@app.route('/user/edit/<id>', methods=['PUT'])
 def edit_user(id):
     user = User.query.get(id)
 
@@ -164,8 +164,8 @@ def get_user_activity(id):
     else:
         return jsonify({ 'msg': 'No user or activity entry'})
 
-# Edit an activity
-@app.route('/user/activity/<id>', methods=['PUT'])
+# Edit an activity and/or episodes
+@app.route('/user/activity/edit/<id>', methods=['PUT'])
 @jwt_required
 def edit_activity(id):
     if not request.is_json:
@@ -181,6 +181,11 @@ def edit_activity(id):
                 isComplete = request.json.get("isComplete", activity.isComplete)
                 # Check equality with string true to return Python type Boolean
                 activity.isComplete = isComplete.lower() == "true"
+                if activity.episode:
+                    activity.episode.episode_progress = int(request.json.get("episode_progress", activity.episode.episode_progress))
+                    activity.episode.episode_total = int(request.json.get("episode_total", activity.episode.episode_total))
+                db.session.commit()
+
                 return activity_schema.jsonify(activity)
         return jsonify({ 'msg': 'No activity entry'})
     else:
@@ -196,8 +201,11 @@ def delete_activity(id):
 
     return activity_schema.jsonify(activity)
 
+# EPISODE ROUTES
+
 # Pass activity id and add episode class
 @app.route('/activity/episode/<id>', methods=['POST'])
+@jwt_required
 def add_episodes(id):
     if not request.is_json:
         return jsonify({ 'msg': 'Missing or invalid JSON request '})
@@ -217,5 +225,8 @@ def add_episodes(id):
         return episode_schema.jsonify(new_episode)
     else:
         return jsonify({ "msg": "Missing fields"})
+
+
+    
 
 
