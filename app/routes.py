@@ -1,12 +1,13 @@
 from flask import request, jsonify
 from app import app, db, bcrypt, jwt
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Activity, UserSchema, ActivitySchema
+from app.models import User, Activity, Episode, UserSchema, ActivitySchema, EpisodeSchema
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
 activity_schema = ActivitySchema()
 activities_schema = ActivitySchema(many=True)
+episode_schema = EpisodeSchema()
 # Routes
 
 # Register user
@@ -37,22 +38,8 @@ def register_user():
 
     else:
         return jsonify({ 'msg' : 'Missing fields'})
-# Get all users
-@app.route('/user', methods=['GET'])
-def get_users():
-    all_users = User.query.all()
-    result = users_schema.dump(all_users)
 
-    return jsonify(result)
-# Delete specific user
-@app.route('/user/<id>', methods=['DELETE'])
-def delete_user(id):
-    user = User.query.get(id)
-    db.session.delete(user)
-    db.session.commit()
-
-    return user_schema.jsonify(user)
-# Login and return a JWT
+# Login and return a JWT     
 @app.route('/login', methods=['POST'])
 def login():
     if not request.is_json:
@@ -65,11 +52,32 @@ def login():
     if not password:
         return jsonify({"msg": "Missing password"})
     user = User.query.filter_by(username=username).first()
+    print(user.activity)
     if user and bcrypt.check_password_hash(user.password, password):
         access_token = jwt._create_access_token(identity=username)
         return jsonify(access_token)
     else:
         return jsonify({ "msg": "Invalid credentials"})
+
+# Get specific user
+
+# Get all users
+@app.route('/user', methods=['GET'])
+def get_users():
+    all_users = User.query.all()
+    result = users_schema.dump(all_users)
+
+    return jsonify(result)
+
+# Delete specific user
+@app.route('/user/<id>', methods=['DELETE'])
+def delete_user(id):
+    user = User.query.get(id)
+    db.session.delete(user)
+    db.session.commit()
+
+    return user_schema.jsonify(user)
+
 
 # Create new activity
 # jwt_ required returns 422/401 if invalid
@@ -110,3 +118,24 @@ def delete_activity(id):
     db.session.commit()
 
     return activity_schema.jsonify(activity)
+
+@app.route('/activity/episode/<id>', methods=['POST'])
+def add_episodes(id):
+    if not request.is_json:
+        return jsonify({ 'msg': 'Missing or invalid JSON request '})
+    # Query database for activity to verify existence
+    current_activity = Activity.query.get(id)
+    activity_id=current_activity.id
+
+    episode_total = request.json.get("episode_total", 0)
+    episode_progress = request.json.get("episode_progress", 0)
+
+    if activity_id:
+        new_episode = Episode(episode_total=episode_total, episode_progress=episode_progress, activity_id=activity_id)
+
+        db.session.add(new_episode)
+        db.session.commit()
+
+        return episode_schema.jsonify(new_episode)
+    else:
+        return jsonify({ "msg": "Missing fields"})
