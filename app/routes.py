@@ -111,7 +111,7 @@ def delete_user(id):
 
     return user_schema.jsonify(user)
 
-# ACTIVITY ROUTES
+# ACTIVITY & EPISODE ROUTES
 
 # Create new activity
 # jwt_ required returns 422/401 if invalid
@@ -181,6 +181,7 @@ def edit_activity(id):
                 isComplete = request.json.get("isComplete", activity.isComplete)
                 # Check equality with string true to return Python type Boolean
                 activity.isComplete = isComplete.lower() == "true"
+                # Check if episodes are being updated
                 if activity.episode:
                     activity.episode.episode_progress = int(request.json.get("episode_progress", activity.episode.episode_progress))
                     activity.episode.episode_total = int(request.json.get("episode_total", activity.episode.episode_total))
@@ -200,8 +201,6 @@ def delete_activity(id):
     db.session.commit()
 
     return activity_schema.jsonify(activity)
-
-# EPISODE ROUTES
 
 # Pass activity id and add episode class
 @app.route('/activity/episode/<id>', methods=['POST'])
