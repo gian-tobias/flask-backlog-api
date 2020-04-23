@@ -10,7 +10,7 @@ class User(db.Model):
     username = db.Column(db.String(60), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(60), unique=True, nullable=False)
-    activity = db.relationship("Activity", backref="user", uselist=True)
+    activity = db.relationship("Activity", back_populates="user", uselist=True)
     def __init__(self, username, password, email):
         self.username = username
         self.password = password
@@ -19,10 +19,7 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
-class UserSchema(ma.Schema):
-    class Meta:
-        fields = ('id', 'username', 'password', 'email')
-
+# Activity class
 
 class Activity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -32,23 +29,19 @@ class Activity(db.Model):
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     isComplete = db.Column(db.Boolean, nullable=False, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship("User", back_populates="activity")
     episode = db.relationship("Episode", back_populates="activity", uselist=False)
  
-    def __init__(self, activity_type, name, desc, user_id, episode_id=None):
+    def __init__(self, activity_type, name, desc, user_id):
         self.activity_type = activity_type
         self.name = name
         self.desc = desc
         self.user_id = user_id
-        if episode_id != None:
-            self.episode_id = episode_id
 
     def __repr__(self):
             return '<Activity %r>' % self.name
 
-class ActivitySchema(ma.Schema):
-    class Meta:
-        include_fk = True
-        fields = ('id', 'activity_type', 'name', 'desc', 'date_posted', 'isComplete', 'user_id', 'episode_id')
+# Episode class
 
 class Episode(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,3 +54,20 @@ class EpisodeSchema(ma.Schema):
     class Meta:
         include_fk = True
         fields = ('id', 'episode_total', 'episode_progress', 'activity_id')
+
+# Include relationship schemas in serialization
+# Declaration of nested schema should precede parent schema 
+
+class ActivitySchema(ma.Schema):
+    episode = fields.Nested(EpisodeSchema)
+    class Meta:
+        include_fk = True
+        fields = ('id', 'activity_type', 'name', 'desc', 'date_posted', 'isComplete', 'user_id', 'episode')
+
+# Activity Schema is one-to-many; invoke fields.List to serialize properly
+
+class UserSchema(ma.Schema):
+    activity = fields.List(fields.Nested(ActivitySchema))
+    class Meta:
+        fields = ('id', 'username', 'password', 'email', 'activity')
+        
