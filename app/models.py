@@ -28,14 +28,16 @@ class Activity(db.Model):
     desc = db.Column(db.String(200))
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     isComplete = db.Column(db.Boolean, nullable=False, default=False)
+    timeToFinish = db.Column(db.Integer, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship("User", back_populates="activity")
     episode = db.relationship("Episode", back_populates="activity", uselist=False)
  
-    def __init__(self, activity_type, name, desc, user_id):
+    def __init__(self, activity_type, name, desc, timeToFinish, user_id):
         self.activity_type = activity_type
         self.name = name
         self.desc = desc
+        self.timeToFinish = timeToFinish
         self.user_id = user_id
 
     def __repr__(self):
@@ -62,7 +64,7 @@ class ActivitySchema(ma.Schema):
     episode = fields.Nested(EpisodeSchema)
     class Meta:
         include_fk = True
-        fields = ('id', 'activity_type', 'name', 'desc', 'date_posted', 'isComplete', 'user_id', 'episode')
+        fields = ('id', 'activity_type', 'name', 'desc', 'date_posted', 'isComplete', 'timeToFinish', 'user_id', 'episode')
 
 # Activity Schema is one-to-many; invoke fields.List to serialize properly
 

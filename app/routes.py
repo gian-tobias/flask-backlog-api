@@ -1,8 +1,8 @@
 from flask import request, jsonify
-from app import app, db, bcrypt, jwt
+from app import app, db, bcrypt, jwt, q
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import User, Activity, Episode, UserSchema, ActivitySchema, EpisodeSchema
-import json
+import json, time
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
@@ -36,15 +36,30 @@ def register_user():
         # Hash password after passing validation
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-        new_user = User(username, hashed_password, email)
+        job = q.enqueue_call(func=simulate_picture_upload, args=(username, hashed_password, email), result_ttl=10000)
+      
+        # new_user = User(username, hashed_password, email)
 
-        db.session.add(new_user)
-        db.session.commit()
+        # db.session.add(new_user)
+        # db.session.commit()
 
-        return user_schema.jsonify(new_user)
+        # return user_schema.jsonify(new_user)
+        return jsonify({ 'success': 'Profile is being created with id: ' +  job.get_id()})
 
     else:
         return jsonify({ 'msg' : 'Missing fields'})
+
+# Simulation that a user registration also involves uploading a profile picture
+# Instead of the waiting for the upload to complete, the task is delegated to queue
+# Response json is sent
+def simulate_picture_upload(username, hashed_password, email):
+    time.sleep(5)
+    new_user = User(username, hashed_password, email)
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    print('simulation of db user + image saved')
 
 # Login and return a JWT     
 @app.route('/login', methods=['POST'])
@@ -125,10 +140,12 @@ def new_activity():
     activity_type = request.json.get("activity_type", None)
     name = request.json.get("name", None)
     desc = request.json.get("desc", None)
+    timeToFinish = request.json.get("timeToFinish", 3600)
+    print(timeToFinish)
     user_id = current_user.id
     if activity_type and name and desc and user_id:
-        new_activity = Activity(activity_type=activity_type, name=name, desc=desc, user_id=user_id)
-
+        new_activity = Activity(activity_type=activity_type, name=name, desc=desc, timeToFinish=timeToFinish, user_id=user_id)
+        
         db.session.add(new_activity)
         db.session.commit()
 
@@ -178,9 +195,11 @@ def edit_activity(id):
                 activity.activity_type = request.json.get("activity_type", activity.activity_type)
                 activity.name = request.json.get("name", activity.name)
                 activity.desc = request.json.get("desc", activity.desc)
+                activity.timeToFinish = request.json.get("timeToFinish", activity.timeToFinish)
                 isComplete = request.json.get("isComplete", activity.isComplete)
                 # Check equality with string true to return Python type Boolean
-                activity.isComplete = isComplete.lower() == "true"
+                if type(isComplete) != bool:
+                    activity.isComplete = isComplete.lower() == "true"
                 # Check if episodes are being updated
                 if activity.episode:
                     activity.episode.episode_progress = int(request.json.get("episode_progress", activity.episode.episode_progress))
@@ -225,7 +244,15 @@ def add_episodes(id):
     else:
         return jsonify({ "msg": "Missing fields"})
 
-
-    
+# Retrieve total time to finish for a user
+@app.route('/activity/total', methods=['GET'])
+@jwt_required
+def get_time_to_finish():
+    current_user = User.query.filter_by(username=get_jwt_identity()).first()
+    user_activities = current_user.activity
+    total_time = 0
+    for activity in user_activities:
+        total_time = total_time + activity.timeToFinish  
+    return jsonify({'total-time': total_time})
 
 

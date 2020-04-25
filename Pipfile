@@ -13,6 +13,8 @@ marshmallow-sqlalchemy = "*"
 flask-bcrypt = "*"
 flask-jwt-extended = "*"
 pytest = "*"
+redis = "*"
+rq = "*"
 
 [requires]
 python_version = "3.6"
